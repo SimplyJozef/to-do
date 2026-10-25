@@ -24,6 +24,11 @@ class TodoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void removeTodo(int index) {
+    _todos.removeAt(index);
+    notifyListeners();
+  }
+
   void setPriority(TodoPriority value) {
     _priority = value;
     notifyListeners();

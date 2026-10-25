@@ -61,6 +61,7 @@ class _TodoPageState extends State<TodoPage> {
                       todo: todo,
                       onChanged: (value) =>
                           provider.toggleTodoStatus(index, value),
+                      onDelete: () => provider.removeTodo(index),
                     );
                   },
                 );
@@ -158,8 +159,14 @@ void showMsg(BuildContext context, String s) {
 class TodoItem extends StatelessWidget {
   final MyTodo todo;
   final Function(bool) onChanged;
+  final void Function() onDelete;
 
-  const TodoItem({super.key, required this.todo, required this.onChanged});
+  const TodoItem({
+    super.key,
+    required this.todo,
+    required this.onChanged,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -167,6 +174,10 @@ class TodoItem extends StatelessWidget {
       title: Text(todo.name),
       subtitle: Text('Priority: ${todo.priority.name}'),
       value: todo.completed,
+      secondary: IconButton(
+        onPressed: onDelete,
+        icon: const Icon(Icons.delete),
+      ),
       onChanged: (value) {
         onChanged(value!);
       },
