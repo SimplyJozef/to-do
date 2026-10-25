@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'todo_provider.dart';
 
 /// Hlavná stránka aplikácie so zoznamom úloh (To-Do list)
 class TodoPage extends StatefulWidget {
@@ -8,17 +10,9 @@ class TodoPage extends StatefulWidget {
   State<TodoPage> createState() => _TodoPageState();
 }
 
-/// Trieda, ktorá uchováva stav TodoPage
-/// (zoznam úloh, textové pole, zvolenú prioritu)
 class _TodoPageState extends State<TodoPage> {
   // Kontrolér na prístup k hodnote z TextFieldu
   final _controller = TextEditingController();
-
-  // Predvolená priorita novej úlohy
-  TodoPriority priority = TodoPriority.Normal;
-
-  // Zoznam všetkých úloh (v pamäti aplikácie)
-  final List<MyTodo> _todos = [];
 
   /// Funkcia, ktorá sa zavolá pri kliknutí na "SAVE"
   /// – pridá novú úlohu do zoznamu
@@ -29,28 +23,11 @@ class _TodoPageState extends State<TodoPage> {
       return;
     }
 
-    // Vytvorenie novej úlohy
-    final todo = MyTodo(
-      id: DateTime.now().millisecondsSinceEpoch, // unikátne ID
-      name: _controller.text, // názov úlohy z textového poľa
-      priority: priority, // zvolená priorita
-    );
-
-    // Aktualizácia stavu aplikácie
-    setState(() {
-      _todos.add(todo);
-      _controller.clear(); // vymazanie poľa
-    });
+    Provider.of<TodoProvider>(context, listen: false).addTodo(_controller.text);
+    _controller.clear();
 
     // Zatvorenie spodného okna (BottomSheet)
     Navigator.pop(context);
-  }
-
-  /// Zmena stavu úlohy (označenie ako splnená / nesplnená)
-  void _toggleTodoStatus(int index, bool value) {
-    setState(() {
-      _todos[index].completed = value;
-    });
   }
 
   /// Hlavné rozloženie obrazovky
@@ -72,18 +49,23 @@ class _TodoPageState extends State<TodoPage> {
       appBar: AppBar(title: const Text('My Todos')),
 
       // Obsah obrazovky – buď text, alebo zoznam úloh
-      body: _todos.isEmpty
-          ? const Center(child: Text('Nothing to do!'))
-          : ListView.builder(
-              itemCount: _todos.length,
-              itemBuilder: (context, index) {
-                final todo = _todos[index];
-                return TodoItem(
-                  todo: todo,
-                  onChanged: (value) => _toggleTodoStatus(index, value),
+      body: Consumer<TodoProvider>(
+        builder: (context, provider, child) {
+          return provider.todos.isEmpty
+              ? const Center(child: Text('Nothing to do!'))
+              : ListView.builder(
+                  itemCount: provider.todos.length,
+                  itemBuilder: (context, index) {
+                    final todo = provider.todos[index];
+                    return TodoItem(
+                      todo: todo,
+                      onChanged: (value) =>
+                          provider.toggleTodoStatus(index, value),
+                    );
+                  },
                 );
-              },
-            ),
+        },
+      ),
     );
   }
 
@@ -92,68 +74,63 @@ class _TodoPageState extends State<TodoPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setBuilderState) => Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Textové pole pre názov úlohy
-              TextField(
-                controller: _controller,
-                decoration: const InputDecoration(hintText: 'What to do?'),
-              ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Textové pole pre názov úlohy
+            TextField(
+              controller: _controller,
+              decoration: const InputDecoration(hintText: 'What to do?'),
+            ),
 
-              // Nadpis "Select Priority"
-              const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text('Select Priority'),
-              ),
+            // Nadpis "Select Priority"
+            const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: Text('Select Priority'),
+            ),
 
-              // Tri rádiové tlačidlá – výber priority
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Radio<TodoPriority>(
-                    value: TodoPriority.Low,
-                    groupValue: priority,
-                    onChanged: (value) {
-                      // Aktualizácia lokálneho stavu (v rámci BottomSheetu)
-                      setBuilderState(() {
-                        priority = value!;
-                      });
-                    },
-                  ),
-                  const Text('Low'),
+            // Tri rádiové tlačidlá – výber priority
+            Consumer<TodoProvider>(
+              builder: (context, provider, child) {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Radio<TodoPriority>(
+                      value: TodoPriority.Low,
+                      groupValue: provider.priority,
+                      onChanged: (value) {
+                        provider.setPriority(value!);
+                      },
+                    ),
+                    const Text('Low'),
 
-                  Radio<TodoPriority>(
-                    value: TodoPriority.Normal,
-                    groupValue: priority,
-                    onChanged: (value) {
-                      setBuilderState(() {
-                        priority = value!;
-                      });
-                    },
-                  ),
-                  const Text('Normal'),
+                    Radio<TodoPriority>(
+                      value: TodoPriority.Normal,
+                      groupValue: provider.priority,
+                      onChanged: (value) {
+                        provider.setPriority(value!);
+                      },
+                    ),
+                    const Text('Normal'),
 
-                  Radio<TodoPriority>(
-                    value: TodoPriority.High,
-                    groupValue: priority,
-                    onChanged: (value) {
-                      setBuilderState(() {
-                        priority = value!;
-                      });
-                    },
-                  ),
-                  const Text('High'),
-                ],
-              ),
+                    Radio<TodoPriority>(
+                      value: TodoPriority.High,
+                      groupValue: provider.priority,
+                      onChanged: (value) {
+                        provider.setPriority(value!);
+                      },
+                    ),
+                    const Text('High'),
+                  ],
+                );
+              },
+            ),
 
-              // Tlačidlo na uloženie úlohy
-              ElevatedButton(onPressed: _addTodo, child: const Text('SAVE')),
-            ],
-          ),
+            // Tlačidlo na uloženie úlohy
+            ElevatedButton(onPressed: _addTodo, child: const Text('SAVE')),
+          ],
         ),
       ),
     );
